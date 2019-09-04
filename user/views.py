@@ -3,6 +3,7 @@ import random
 
 from django.shortcuts import render
 from django.contrib.auth import get_user_model
+from rest_framework.authtoken.models import Token
 
 # Create your views here.
 from django.utils import timezone
@@ -44,15 +45,15 @@ def profile_complete(user):
     return True if user.first_name else False
 
 
-class SendOtp(APIView):
-    permission_classes = (AllowAny,)
-
-    @api_response
-    def post(self, request):
-        phone = request.data.get('phone')
-        user = User.objects.get(phone=phone)
-        send_message(phone, user)
-        return {'success': True, 'message': "Otp sent successfully"}
+# class SendOtp(APIView):
+#     permission_classes = (AllowAny,)
+#
+#     @api_response
+#     def post(self, request):
+#         phone = request.data.get('phone')
+#         user = User.objects.get(phone=phone)
+#         send_message(phone, user)
+#         return {'success': True, 'message': "Otp sent successfully"}
 
 
 class VerifyOtp(APIView):
@@ -64,12 +65,15 @@ class VerifyOtp(APIView):
         otp = request.data.get('otp')
         user = User.objects.get(phone=phone)
         if user.otp == otp:
-            return {'success': True, 'message': "Correct Otp"}
+            token = Token.objects.create(user=user)
+            return {'success': True, 'message': "Correct Otp", 'data': {"auth-token": token.key}}
         else:
             return {'success': False, 'message': "Wrong Otp"}
 
 
-# class SignUpView(generics.ListCreateAPIView):
+# class SignUpView(generics.CreateAPIView):
+#     import pdb
+#     pdb.set_trace()
 #     queryset = User.objects.all()
 #     serializer_class = SignupSerializer
 #     permission_classes = [AllowAny]
@@ -91,14 +95,30 @@ class VerifyOtp(APIView):
 
 
 class Login(APIView):
+    permission_classes = (AllowAny,)
     @api_response
     def post(self, request):
-        phone = request.data.get('phone')
-        user = User.objects.get_or_create(phone=phone)
-        if user:
-            send_message(phone, user)
-            return {'success': True, 'message': 'Otp sent Successfully', 'data': profile_complete(user)}
+        phone = request.data.get('phone','')
+        first_name = request.data.get('first_name', '')
+        last_name = request.data.get('last_name', '')
+        if first_name:
+            user = User.objects.get_or_create(phone=phone, first_name=first_name, last_name=last_name)
         else:
-            return {'success': False, 'errors': user.objects.e }
+            user = User.objects.get_or_create(phone=phone)
+        if user:
+            send_message(phone, user[0])
+            return {'success': 1, 'message': 'Otp sent Successfully'}
+        else:
+            return {'success': 0, 'errors': user.objects.errors}
 
+
+class Logout(APIView):
+    # permission_classes = (Authenticated,)
+    @api_response
+    def delete(self, request):
+        try:
+            request.user.auth_token.delete()
+            return {'success': True, 'message': 'Logout out Successfully'}
+        except Exception as e:
+            return {'success': False, 'error': 'Server Error'}
 
