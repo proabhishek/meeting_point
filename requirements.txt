@@ -1,6 +1,6 @@
 boto3==1.9.215
 botocore==1.12.215
-Django==2.2.4
+Django==2.2.13
 django-extensions==2.2.1
 django-shell-plus==1.1.7
 djangorestframework==3.9.1
